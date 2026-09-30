@@ -39,6 +39,9 @@ public class Employee {
     @OneToMany(mappedBy = "employee")
 @JsonIgnore
 private List<LeaveRequest> leaveRequests;
+
+	public Employee() {
+}
     
     @JsonCreator
 public Employee(@JsonProperty("id") Integer id) {

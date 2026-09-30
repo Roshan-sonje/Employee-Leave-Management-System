@@ -15,142 +15,211 @@ import com.jsp.elms.repository.LeaveRequestRepository;
 
 @Service
 public class LeaveServiceImpl implements LeaveService {
-	@Autowired
-	private LeaveRequestRepository repository;
 
-	@Autowired
-	private EmailService emailService;
+    @Autowired
+    private LeaveRequestRepository repository;
 
-	@Autowired
-	private EmployeeRepository employeeRepository;
+    @Autowired
+    private EmailService emailService;
 
-	public LeaveRequest applyLeave(LeaveRequest leaveRequest) {
-		Integer employeeId = leaveRequest.getEmployee().getId();
+    @Autowired
+    private EmployeeRepository employeeRepository;
 
-		Employee employee = employeeRepository.findById(employeeId).orElseThrow();
 
-		if (employee.getLeaveBalance() <= 0) {
-			throw new RuntimeException("No Leave Balance Available");
-		}
+    // APPLY LEAVE
+    public LeaveRequest applyLeave(LeaveRequest leaveRequest) {
 
-		leaveRequest.setEmployee(employee);
-		leaveRequest.setStatus(LeaveStatus.PENDING);
+        Integer employeeId = leaveRequest.getEmployee().getId();
 
-		LeaveRequest saved = repository.save(leaveRequest);
+        Employee employee = employeeRepository
+                .findById(employeeId)
+                .orElseThrow();
 
-		emailService.sendLeaveAppliedEmailToAdmin(employee.getName(), leaveRequest.getLeaveType().toString(),
-				leaveRequest.getStartDate().toString(), leaveRequest.getEndDate().toString());
+        if (employee.getLeaveBalance() <= 0) {
+            throw new RuntimeException("No Leave Balance Available");
+        }
 
-		return saved;
-	}
+        leaveRequest.setEmployee(employee);
+        leaveRequest.setStatus(LeaveStatus.PENDING);
 
-	public List<LeaveRequest> getAllLeaves() {
-		return repository.findAll();
-	}
+        LeaveRequest saved = repository.save(leaveRequest);
 
-	public LeaveRequest getLeaveById(Integer id) {
-		return repository.findById(id).orElseThrow(() -> new EmployeeNotFoundException("Employee Id Not Found"));
-	}
+        try {
+            emailService.sendLeaveAppliedEmailToAdmin(
+                    employee.getName(),
+                    leaveRequest.getLeaveType().toString(),
+                    leaveRequest.getStartDate().toString(),
+                    leaveRequest.getEndDate().toString()
+            );
+        } catch (Exception e) {
+            System.out.println(
+                    "Leave application email failed: "
+                    + e.getMessage()
+            );
+        }
 
-//    public LeaveRequest approveLeave(Integer id) {
-//        LeaveRequest leave = repository.findById(id).orElse(null);
-//
-//        if (leave != null) {
-//            leave.setStatus(LeaveStatus.APPROVED);
-//            return repository.save(leave);
-//        }
-//
-//        return null;
-//    }
+        return saved;
+    }
 
-	public LeaveRequest rejectLeave(Integer id) {
-		LeaveRequest leave = repository.findById(id).orElseThrow();
 
-		leave.setStatus(LeaveStatus.REJECTED);
-		
-		emailService.sendLeaveRejectedEmail(
-		        leave.getEmployee().getEmail(),
-		        leave.getEmployee().getName()
-		);
+    // GET ALL LEAVES
+    public List<LeaveRequest> getAllLeaves() {
+        return repository.findAll();
+    }
 
-		return repository.save(leave);
-	}
 
-//	public LeaveRequest approveLeave(Integer id) {
-//
-//	    LeaveRequest leave = repository.findById(id).orElse(null);
-//
-//	    System.out.println("Leave = " + leave);
-//
-//	    if (leave != null) {
-//
-//	        Employee employee = leave.getEmployee();
-//
-//	        if(employee == null) {
-//	            throw new RuntimeException("Employee not linked with leave request");
-//	        }
-//	        System.out.println("Employee = " + employee);
-//
-//	        long days = ChronoUnit.DAYS.between(
-//	                leave.getStartDate(),
-//	                leave.getEndDate()) + 1;
-//
-//	        System.out.println("Days = " + days);
-//
-//	        if (employee.getLeaveBalance() >= days) {
-//
-//	            leave.setStatus(LeaveStatus.APPROVED);
-//
-//	            employee.setLeaveBalance(
-//	                    employee.getLeaveBalance() - (int) days);
-//
-//	            employeeRepository.save(employee);
-//
-//	            return repository.save(leave);
-//	        }
-//	    }
-//
-//	    return null;
-//	}
+    // GET LEAVE BY ID
+    public LeaveRequest getLeaveById(Integer id) {
 
-	public LeaveRequest approveLeave(Integer id) {
+        return repository.findById(id)
+                .orElseThrow(
+                        () -> new EmployeeNotFoundException(
+                                "Employee Id Not Found"
+                        )
+                );
+    }
 
-		System.out.println("APPROVE CLICKED");
 
-		LeaveRequest leave = repository.findById(id).orElse(null);
+    // REJECT LEAVE
+    public LeaveRequest rejectLeave(Integer id) {
 
-		if (leave != null) {
+        LeaveRequest leave = repository
+                .findById(id)
+                .orElseThrow();
 
-			Employee employee = leave.getEmployee();
+        leave.setStatus(LeaveStatus.REJECTED);
 
-			System.out.println("Employee = " + employee.getId());
-			System.out.println("Balance Before = " + employee.getLeaveBalance());
+        LeaveRequest savedLeave = repository.save(leave);
 
-			long days = ChronoUnit.DAYS.between(leave.getStartDate(), leave.getEndDate()) + 1;
+        try {
 
-			System.out.println("Days = " + days);
+            emailService.sendLeaveRejectedEmail(
+                    leave.getEmployee().getEmail(),
+                    leave.getEmployee().getName()
+            );
 
-			employee.setLeaveBalance(employee.getLeaveBalance() - (int) days);
+        } catch (Exception e) {
 
-			System.out.println("Balance After = " + employee.getLeaveBalance());
+            System.out.println(
+                    "Rejection email failed: "
+                    + e.getMessage()
+            );
+        }
 
-			leave.setStatus(LeaveStatus.APPROVED);
-			
-			emailService.sendLeaveApprovedEmail(
-			        employee.getEmail(),
-			        employee.getName()
-			);
+        return savedLeave;
+    }
 
-			employeeRepository.save(employee);
 
-			return repository.save(leave);
-		}
+    // APPROVE LEAVE
+    public LeaveRequest approveLeave(Integer id) {
 
-		return null;
-	}
+        System.out.println("APPROVE CLICKED");
 
-	public List<LeaveRequest> getLeaveHistory(Integer employeeId) {
-		return repository.findByEmployeeId(employeeId);
-	}
+        LeaveRequest leave = repository
+                .findById(id)
+                .orElse(null);
+
+        if (leave == null) {
+            return null;
+        }
+
+        Employee employee = leave.getEmployee();
+
+        if (employee == null) {
+            throw new RuntimeException(
+                    "Employee not linked with leave request"
+            );
+        }
+
+        System.out.println(
+                "Employee = " + employee.getId()
+        );
+
+        System.out.println(
+                "Balance Before = "
+                + employee.getLeaveBalance()
+        );
+
+
+        long days = ChronoUnit.DAYS.between(
+                leave.getStartDate(),
+                leave.getEndDate()
+        ) + 1;
+
+
+        System.out.println(
+                "Days = " + days
+        );
+
+
+        // CHECK LEAVE BALANCE
+        if (employee.getLeaveBalance() < days) {
+
+            throw new RuntimeException(
+                    "Insufficient Leave Balance"
+            );
+        }
+
+
+        // REDUCE LEAVE BALANCE
+        employee.setLeaveBalance(
+                employee.getLeaveBalance()
+                        - (int) days
+        );
+
+
+        System.out.println(
+                "Balance After = "
+                + employee.getLeaveBalance()
+        );
+
+
+        // CHANGE STATUS
+        leave.setStatus(
+                LeaveStatus.APPROVED
+        );
+
+
+        // SAVE EMPLOYEE BALANCE
+        employeeRepository.save(employee);
+
+
+        // SAVE APPROVED LEAVE
+        LeaveRequest savedLeave =
+                repository.save(leave);
+
+
+        /*
+         * Send email AFTER database update.
+         * If email fails, approval will still remain saved.
+         */
+        try {
+
+            emailService.sendLeaveApprovedEmail(
+                    employee.getEmail(),
+                    employee.getName()
+            );
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "Approval email failed: "
+                    + e.getMessage()
+            );
+        }
+
+
+        return savedLeave;
+    }
+
+
+    // GET EMPLOYEE LEAVE HISTORY
+    public List<LeaveRequest> getLeaveHistory(
+            Integer employeeId) {
+
+        return repository.findByEmployeeId(
+                employeeId
+        );
+    }
 
 }

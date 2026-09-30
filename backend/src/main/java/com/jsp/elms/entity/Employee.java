@@ -36,8 +36,8 @@ public class Employee {
     private Role role;
     
     @OneToMany(mappedBy = "employee")
-    @JsonManagedReference
-    private List<LeaveRequest> leaveRequests;
+@JsonIgnore
+private List<LeaveRequest> leaveRequests;
     
     public Employee() {
 	}

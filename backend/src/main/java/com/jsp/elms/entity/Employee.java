@@ -1,7 +1,8 @@
 package com.jsp.elms.entity;
 
 import java.util.List;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
@@ -39,8 +40,10 @@ public class Employee {
 @JsonIgnore
 private List<LeaveRequest> leaveRequests;
     
-    public Employee() {
-	}
+    @JsonCreator
+public Employee(@JsonProperty("id") Integer id) {
+    this.id = id;
+}
 
 	public Employee(Integer id, String name, String email, String password, String department, String designation,
 			Integer leaveBalance, Role role, List<LeaveRequest> leaveRequests) {
